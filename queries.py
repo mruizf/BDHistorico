@@ -19,7 +19,6 @@ class QueryBase(ABC):
     def execute(self,conn):
         """Ejecuta la query usando el conector dado"""
         cursor = conn.cursor()
-        print(self.SQL, self.registro)
         cursor.execute(self.SQL, self.registro)
         try:
             return cursor.fetchall()  # SELECT
@@ -55,7 +54,6 @@ class InsertDividendo(QueryBase):
         self.SQL = f"INSERT INTO distribuciones ({cols}) VALUES ({placeholders})"
         for k in self.DB2EXCEL.keys():
              self.registro[k]=valores[self.DB2EXCEL[k]]
-        print(self.SQL,self.registro)
     
 class InsertVela(QueryBase):
     DB2EXCEL={ "id_fibra":"id_fibra",
@@ -76,5 +74,3 @@ class InsertVela(QueryBase):
         
         for k in self.DB2EXCEL.keys():
              self.registro[k]=valores[self.DB2EXCEL[k]]
-        print(self.SQL,self.registro)
-        print("Hola mundo")
