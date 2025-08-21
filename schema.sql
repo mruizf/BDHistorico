@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS velas (
     low REAL NOT NULL,
     close REAL NOT NULL,
     volume REAL NOT NULL,
+    var REAL NOT NULL,
     frecuencia TEXT NOT NULL,
     FOREIGN KEY (id_fibra) REFERENCES fibras(id_fibra),
     UNIQUE (id_fibra,frecuencia,timestamp)

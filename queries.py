@@ -7,6 +7,9 @@ Created on Tue Aug 19 13:12:44 2025
 import sqlite3
 from abc import ABC, abstractmethod
 
+#Query Objects
+#Usados para leer datos de una hoja de excel e insertarlos en la base sqlite
+#Para mantener esto sencillo tendremos una hoja de calculo por cada tabla
 
 class QueryBase(ABC):
     SQL=""
@@ -22,8 +25,9 @@ class QueryBase(ABC):
         cursor.execute(self.SQL, self.params())
         try:
             return cursor.fetchall()  # SELECT
-        except sqlite3.ProgrammingError:
+        except (sqlite3.ProgrammingError, sqlite3.IntegrityError) as e:
             # para INSERT/UPDATE/DELETE que no devuelven resultados
+            print("Error al lanzar la query:"+self.SQL+"---",e)
             return None
 
 class InsertNewFibra(QueryBase):
@@ -44,17 +48,6 @@ class GetFibraID(QueryBase):
     def params(self):
         return (self.id_fibra,)
     
-    # def execute(self,conn)->Integer:
-    #     super().execute(conn)
-    #     resultado = cursor.fetchone()
-    #     id=-1
-    #     if resultado:  
-    #         id_fibra = resultado[0]   # fetchone devuelve una tupla
-    #         print("El id_fibra es:", id_fibra)
-    #     else:
-    #         print("No se encontró la fibra")
-    #     return int
-    
 class InsertDividendo(QueryBase):
     SQL = """
             insert into distribuciones (id_fibra,fecha_pago,fecha_ex_dividendo,tipo_dividendo,dividendo,rendimiento) 
@@ -72,3 +65,29 @@ class InsertDividendo(QueryBase):
     def params(self):
         return (self.id_fibra,self.fecha_pago,self.fecha_ex_dividendo,
                 self.tipo_dividendo,self.dividendo,self.rendimiento)
+    
+class InsertVela(QueryBase):
+    SQL = """
+            insert into velas (id_fibra,timestamp,
+                               open,high,low,close,
+                               volume,var,frecuencia) 
+            values (?,?,?,?,?,?,?,?,?)
+            """
+            
+    def __init__(self, id_fibra =-1, timestamp = None , 
+                 open = -1,high = -1, low = -1,close = -1, 
+                 volume = -1, var =-1, frecuencia = None):
+        self.id_fibra = id_fibra
+        self.timestamp = timestamp
+        self.open = open
+        self.high = high
+        self.low = low
+        self.close = close
+        self.volume = volume
+        self.var = var
+        self.frecuencia = frecuencia
+        
+    def params(self):
+        return (self.id_fibra, self.timestamp,
+                self.open, self.high, self.low, self.close,
+                self.volume, self.var,self.frecuencia)
