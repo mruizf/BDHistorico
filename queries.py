@@ -13,16 +13,14 @@ from abc import ABC, abstractmethod
 
 class QueryBase(ABC):
     SQL=""
-
-    @abstractmethod
-    def params(self):
-        """Debe devolver una tupla con los parámetros de la query"""
-        pass
+    
+    registro={}
 
     def execute(self,conn):
         """Ejecuta la query usando el conector dado"""
         cursor = conn.cursor()
-        cursor.execute(self.SQL, self.params())
+        print(self.SQL, self.registro)
+        cursor.execute(self.SQL, self.registro)
         try:
             return cursor.fetchall()  # SELECT
         except (sqlite3.ProgrammingError, sqlite3.IntegrityError) as e:
@@ -31,63 +29,52 @@ class QueryBase(ABC):
             return None
 
 class InsertNewFibra(QueryBase):
-    SQL = "INSERT INTO fibras (nombre) VALUES (?)"
-    
     def __init__(self, nombre_fibra=""):
-        self.nombre_fibra = nombre_fibra
-
-    def params(self):
-        return (self.nombre_fibra,)
+        #self.SQL = "INSERT INTO fibras (nombre) VALUES (?)"
+        self.registro={"nombre":nombre_fibra}
+        self.SQL = "INSERT INTO fibras (nombre) VALUES (:nombre)"
+        #self.nombre_fibra = nombre_fibra
     
 class GetFibraID(QueryBase):
-    SQL = "SELECT id_fibra FROM fibras WHERE nombre = ?"
-    
     def __init__(self, id_fibra=-1):
-        self.id_fibra = id_fibra
+        self.registro={"id_fibra":id_fibra}
+        self.SQL = "SELECT id_fibra FROM fibras WHERE nombre = :id_fibra"
 
-    def params(self):
-        return (self.id_fibra,)
-    
 class InsertDividendo(QueryBase):
-    SQL = """
-            insert into distribuciones (id_fibra,fecha_pago,fecha_ex_dividendo,tipo_dividendo,dividendo,rendimiento) 
-            values (?,?,?,?,?,?)
-            """
-    def __init__(self, id_fibra =-1, fecha_pago = None , fecha_ex_dividendo = None,
-                 tipo_dividendo = "", dividendo = -1, rendimiento =-1):
-        self.id_fibra = id_fibra
-        self.fecha_pago = fecha_pago
-        self.fecha_ex_dividendo = fecha_ex_dividendo
-        self.tipo_dividendo = tipo_dividendo
-        self.dividendo = dividendo
-        self.rendimiento = rendimiento
-
-    def params(self):
-        return (self.id_fibra,self.fecha_pago,self.fecha_ex_dividendo,
-                self.tipo_dividendo,self.dividendo,self.rendimiento)
+    DB2EXCEL={"id_fibra":"id_fibra",
+              "fecha_ex_dividendo":"Fecha ex-dividendo",
+              "fecha_pago": "Fecha de pago",
+              "tipo_dividendo": "Tipo",
+              "dividendo": "Dividendo",
+              "rendimiento": "Rendimiento"}
+    
+    def __init__(self,valores):
+        cols = ",".join(self.DB2EXCEL.keys())
+        placeholders = ",".join([f":{k}" for k in self.DB2EXCEL.keys()])
+        
+        self.SQL = f"INSERT INTO distribuciones ({cols}) VALUES ({placeholders})"
+        for k in self.DB2EXCEL.keys():
+             self.registro[k]=valores[self.DB2EXCEL[k]]
+        print(self.SQL,self.registro)
     
 class InsertVela(QueryBase):
-    SQL = """
-            insert into velas (id_fibra,timestamp,
-                               open,high,low,close,
-                               volume,var,frecuencia) 
-            values (?,?,?,?,?,?,?,?,?)
-            """
-            
-    def __init__(self, id_fibra =-1, timestamp = None , 
-                 open = -1,high = -1, low = -1,close = -1, 
-                 volume = -1, var =-1, frecuencia = None):
-        self.id_fibra = id_fibra
-        self.timestamp = timestamp
-        self.open = open
-        self.high = high
-        self.low = low
-        self.close = close
-        self.volume = volume
-        self.var = var
-        self.frecuencia = frecuencia
+    DB2EXCEL={ "id_fibra":"id_fibra",
+               "timestamp":"Fecha",
+               "open":"Apertura",
+               "high":"Máximo",
+               "low":"Mínimo",
+               "close":"Cierre",
+               "volume":"Vol.",
+               "var":"% var.",
+               "frecuencia":"frecuencia"}
+    
+    def __init__(self, valores):
+        cols = ",".join(self.DB2EXCEL.keys())
+        placeholders = ",".join([f":{k}" for k in self.DB2EXCEL.keys()])
+      
+        self.SQL = f"INSERT INTO velas ({cols}) VALUES ({placeholders})"
         
-    def params(self):
-        return (self.id_fibra, self.timestamp,
-                self.open, self.high, self.low, self.close,
-                self.volume, self.var,self.frecuencia)
+        for k in self.DB2EXCEL.keys():
+             self.registro[k]=valores[self.DB2EXCEL[k]]
+        print(self.SQL,self.registro)
+        print("Hola mundo")

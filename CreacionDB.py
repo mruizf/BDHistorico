@@ -11,6 +11,8 @@ import os
 from typing import List,NoReturn
 import queries as qu
 
+
+########################VARIABLES GLOBALES#############################
 fibras : List[str] = ["DANHOS13",
                     "FUNO11",
                     "FMTY14",
@@ -28,6 +30,12 @@ fibras : List[str] = ["DANHOS13",
 
 dbName:str       ="historicoFibras.db"
 schemaFile:str   ="schema.sql"
+
+create_database = True
+insertar_fibras:bool = True
+insertar_distribuciones:bool =True
+insertar_velas:bool =True
+
 
 
 def create_db() -> NoReturn:
@@ -47,98 +55,106 @@ def create_db() -> NoReturn:
         print("La base de datos ya existe, no se modificó.")
 
 
+
+
 if __name__=="__main__":
 
-    create_db()
-    
-    hojas:dict[str,pd.DataFrame] = pd.read_excel("HistoricoVelasDesde2024.xlsx", sheet_name=None)        
-
-    for fibra in fibras:
-        print(f"Fibra:{fibra}")
+    if create_database:
+        create_db()
         
-        if fibra in hojas:
-            dft = hojas[fibra]
+    if insertar_fibras:
+        for fibra in fibras:
+            print(f"Fibra:{fibra}")
+            #aqui vamos a insertar las velas
             with sqlite3.connect(dbName) as conn:
-                print("Guardando la hoja"+fibra)
-                
-                #aqui vamos a insertar las velas
                 insert = qu.InsertNewFibra(fibra)
                 insert.execute(conn)
-
-                select = qu.GetFibraID(fibra)
-                resultado = select.execute(conn)
-                
-                if resultado:  
-                    id_fibra = resultado[0][0]   # fetalldone devuelve una lista de tuplas
-                    print("El id_fibra es:", id_fibra)
-                else:
-                    print("No se encontró la fibra")
+    
+    if insertar_velas:
+        hojas:dict[str,pd.DataFrame] = pd.read_excel("HistoricoVelasDesde2024.xlsx", sheet_name=None)        
+    
+        for fibra in fibras:
+            print(f"Fibra:{fibra}")
+            
+            if fibra in hojas:
+                dft = hojas[fibra]
+                with sqlite3.connect(dbName) as conn:
+                    print("Guardando la hoja"+fibra)
+    
+                    select = qu.GetFibraID(fibra)
+                    resultado = select.execute(conn)
                     
-                print("Ahora insertamos las distribuciones")
-                            
-                for index,row in dft.iterrows():
-                    #variables temporales
-                    timestamp:int =int(row["Fecha"].timestamp())
-                    open:float    = row["Apertura"]
-                    high:float    = row["Máximo"]
-                    low:float     = row["Mínimo"]
-                    close:float   = row["Cierre"]
-                    
-                    temp = row["Vol."]
-                    if (temp[-1]=="K"):
-                        temp = float(temp[0:-1])*1000
-                    elif (temp[-1]=="M"):
-                        temp = float(temp[0:-1])*1000000
+                    if resultado:  
+                        id_fibra = resultado[0][0]   # fetalldone devuelve una lista de tuplas
+                        print("El id_fibra es:", id_fibra)
                     else:
-                        print("Posfijo inesperado: "+temp)
-                    
-                    volume:float  = temp
-                    var:float = row["% var."]
+                        print("No se encontró la fibra")
+                        
+                    print("Ahora insertamos las velas")
+                                
+                    columnNames= list(dft.columns.values)
+                    for index,row in dft.iterrows():
+                        temp = row["Vol."]
+                        volume=-1
+                        if (temp[-1]=="K"):
+                            volume = float(temp[0:-1])*1000
+                        elif (temp[-1]=="M"):
+                            volume = float(temp[0:-1])*1000000
+                        else:
+                            print("Posfijo inesperado: "+temp)
+                        
+                        #volume:float  = temp
+                        #var:float = row["% var."]
+                                            
+                        
+                        #insertamos en la BD
+                        valores = row
+                        valores["Fecha"]=int(row["Fecha"].timestamp())
+                        valores["Vol."]=volume
+                        valores["id_fibra"]=id_fibra
+                        valores["frecuencia"]="1D"
+                        
+                        insertVela = qu.InsertVela(valores)
+                        insertVela.execute(conn)
+                    conn.commit()
+                print(f"Fibra '{fibra}' insertada con éxito.")
+
+
+
+    if insertar_distribuciones:
+        hojas:dict[str,pd.DataFrame] = pd.read_excel("Historico de Fibras.xlsx", header=1,sheet_name=None)
+        
+        for fibra in fibras:
+            print(f"Fibra:{fibra}")
+            if fibra in hojas:
+                dft = hojas[fibra]
+                with sqlite3.connect(dbName) as conn:
+                    print("Guardando la hoja distribucion"+fibra)
                                         
-                    #insertamos en la BD
-                    insertVela = qu.InsertVela(id_fibra,timestamp,
-                                                    open,high,low,close,
-                                                    volume,var,"1D")
-                    insertVela.execute(conn)
-                conn.commit()
-            print(f"Fibra '{fibra}' insertada con éxito.")
+                    select = qu.GetFibraID(fibra)
+                    resultado = select.execute(conn)
+        
+                    id_fibra=-1
+                    if resultado:  
+                        id_fibra = resultado[0][0]   # fetalldone devuelve una lista de tuplas
+                        print("El id_fibra es:", id_fibra)
+                    else:
+                        print("No se encontró la fibra")
+                    
+                    print("Ahora insertamos las distribuciones")
+                    
+                    for index,row in dft.iterrows():
+                        #variables temporales
+                        valores = row
+                        valores["Fecha de pago"]=int(row["Fecha de pago"].timestamp())
+                        valores["Fecha ex-dividendo"]=int(row["Fecha ex-dividendo"].timestamp())
+                        valores["id_fibra"]=id_fibra
+                        
+                        #insertamos en la BD
+                        insertDividendo = qu.InsertDividendo(valores)
+                        insertDividendo.execute(conn)
+                    
+                    conn.commit()
+                print(f"Fibra '{fibra}' insertada con éxito.")
 
-    # hojas:dict[str,pd.DataFrame] = pd.read_excel("Historico de Fibras.xlsx", header=1,sheet_name=None)
-    
-    # for fibra in fibras:
-    #     print(f"Fibra:{fibra}")
-    #     if fibra in hojas:
-    #         dft = hojas[fibra]
-    #         with sqlite3.connect(dbName) as conn:
-    #             print("Guardando la hoja"+fibra)
-                
-    #             #cursor.execute("insert into fibras (nombre) values (?)",(fibra,))
-    #             insert = qu.InsertNewFibra(fibra)
-    #             insert.execute(conn)
-                
-    #             select = qu.GetFibraID(fibra)
-    #             resultado = select.execute(conn)
-    
-    #             id_fibra=-1
-    #             if resultado:  
-    #                 id_fibra = resultado[0][0]   # fetalldone devuelve una lista de tuplas
-    #                 print("El id_fibra es:", id_fibra)
-    #             else:
-    #                 print("No se encontró la fibra")
-                
-    #             print("Ahora insertamos las distribuciones")
-                
-    #             for index,row in dft.iterrows():
-    #                 #variables temporales
-    #                 fecha_pago:int        =int(row["Fecha de pago"].timestamp())
-    #                 fecha_ex_dividendo:int=int(row["Fecha ex-dividendo"].timestamp())
-    #                 tipo_dividendo:str    =row["Tipo"]
-    #                 dividendo:float       =row["Dividendo"]
-    #                 rendimiento:float     =row["Rendimiento"]
-    #                 #insertamos en la BD
-    #                 insertDividendo = qu.InsertDividendo(id_fibra,fecha_pago,fecha_ex_dividendo,tipo_dividendo,dividendo,rendimiento)
-    #                 insertDividendo.execute(conn)
-                
-    #             conn.commit()
-    #         print(f"Fibra '{fibra}' insertada con éxito.")
-
+    print(conn.close())
