@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS velas (
 CREATE TABLE IF NOT EXISTS distribuciones (
     id_distribucion INTEGER PRIMARY KEY AUTOINCREMENT,
     id_fibra INTEGER NOT NULL,
-    fecha_ex_dividendo TEXT NOT NULL,
-    fecha_pago TEXT NOT NULL,
+    fecha_ex_dividendo INTEGER NOT NULL,
+    fecha_pago INTEGER NOT NULL,
     tipo_dividendo TEXT NOT NULL,
     dividendo REAL NOT NULL,
     rendimiento REAL NOT NULL,
